@@ -133,14 +133,6 @@ bool PostToastHelper(std::wstring const& tag, std::wstring const& group)
     return true;
 }
 
-// This function is intended to be called in the unpackaged scenario.
-void SetDisplayNameAndIcon() noexcept try
-{
-    // Not mandatory, but it's highly recommended to specify AppUserModelId
-    THROW_IF_FAILED(SetCurrentProcessExplicitAppUserModelID(L"TestAppId5"));
-}
-CATCH_LOG()
-
 int main()
 {
     // Retrieve the app scenario.
@@ -156,7 +148,8 @@ int main()
         const PACKAGE_VERSION minVersion{};
         RETURN_IF_FAILED(MddBootstrapInitialize(c_Version_MajorMinor, nullptr, minVersion));
 
-        SetDisplayNameAndIcon();
+        // Not mandatory, but it's highly recommended to specify AppUserModelId
+        THROW_IF_FAILED(SetCurrentProcessExplicitAppUserModelID(L"TestAppIdWorking"));
     }
 
     std::wcout << L"--------------------------------\n";

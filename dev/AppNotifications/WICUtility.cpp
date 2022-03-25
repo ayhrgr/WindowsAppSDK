@@ -124,39 +124,28 @@ HRESULT GetStreamOfWICBitmapSource(_In_opt_ IWICImagingFactory* pWICImagingFacto
     return GetStreamOfWICBitmapSourceWorker(pWICImagingFactory, pWICBitmapSource, guidContainerFormat, BMPV_1, ppStreamOut);
 }
 
-inline HRESULT SaveImageWithWIC(_In_opt_ IWICImagingFactory* pWICImagingFactory, _In_ IWICBitmapSource* pWICBitmapSource, _In_ REFGUID guidContainerFormat, _In_opt_ PCWSTR pszImagePath, _In_opt_ IStream* pStream)
+inline HRESULT SaveImageWithWIC(_In_opt_ IWICImagingFactory* pWICImagingFactory, _In_ IWICBitmapSource* pWICBitmapSource, _In_ REFGUID guidContainerFormat, _In_opt_ IStream* pStream)
 {
-    HRESULT hr = ((nullptr != pszImagePath) || (nullptr != pStream)) ? S_OK : E_INVALIDARG;
+    Microsoft::WRL::ComPtr<IStream> spImageStream;
 
-    if (SUCCEEDED(hr))
+    THROW_IF_FAILED(GetStreamOfWICBitmapSource(pWICImagingFactory, pWICBitmapSource, guidContainerFormat, &spImageStream));
+
+    Microsoft::WRL::ComPtr<IStream> spStream = pStream;
+
+    // Seek the stream to the beginning and transfer
+    static LARGE_INTEGER const lnBeginning = { 0 };
+    THROW_IF_FAILED(spImageStream->Seek(lnBeginning, STREAM_SEEK_SET, nullptr));
+
+    static ULARGE_INTEGER lnbuffer = { INT_MAX };
+    THROW_IF_FAILED(spImageStream->CopyTo(spStream.Get(), lnbuffer, nullptr, nullptr));
+
+    /*
+    if (SUCCEEDED(hr) && (nullptr == pStream)) // Don't commit streams that are provided to the function
     {
-        Microsoft::WRL::ComPtr<IStream> spImageStream;
-        hr = GetStreamOfWICBitmapSource(pWICImagingFactory, pWICBitmapSource, guidContainerFormat, &spImageStream);
-        if (SUCCEEDED(hr))
-        {
-            Microsoft::WRL::ComPtr<IStream> spStream = pStream;
-            if (spStream == nullptr)
-            {
-                hr = SHCreateStreamOnFileEx(pszImagePath, STGM_CREATE | STGM_READWRITE, FILE_ATTRIBUTE_NORMAL, TRUE, nullptr, &spStream);
-            }
-            if (SUCCEEDED(hr))
-            {
-                // Seek the stream to the beginning and transfer
-                static LARGE_INTEGER const lnBeginning = { 0 };
-                hr = spImageStream->Seek(lnBeginning, STREAM_SEEK_SET, nullptr);
-                if (SUCCEEDED(hr))
-                {
-                    static ULARGE_INTEGER lnbuffer = { INT_MAX };
-                    hr = spImageStream->CopyTo(spStream.Get(), lnbuffer, nullptr, nullptr);
-                    if (SUCCEEDED(hr) && (nullptr == pStream)) // Don't commit streams that are provided to the function
-                    {
-                        hr = spStream->Commit(STGC_DEFAULT);
-                    }
-                }
-            }
-        }
+        hr = spStream->Commit(STGC_DEFAULT);
     }
-    return hr;
+    */
+    return S_OK;
 }
 
 
@@ -181,7 +170,7 @@ HRESULT WriteHIconToPngFile(_In_ HICON hIcon, _In_ PCWSTR pszFileName)
     ComPtr<IStream> spStream;
     THROW_IF_FAILED(CreateStreamOnHGlobal(nullptr, TRUE, &spStream));
 
-    THROW_IF_FAILED(SaveImageWithWIC(spWICImagingFactory.get(), spWICBitmap.Get(), GUID_ContainerFormatPng, nullptr, spStream.Get()));
+    THROW_IF_FAILED(SaveImageWithWIC(spWICImagingFactory.get(), spWICBitmap.Get(), GUID_ContainerFormatPng, spStream.Get()));
 
     // Write out the stream to a file.
     ComPtr<IStream> spStreamOut;
