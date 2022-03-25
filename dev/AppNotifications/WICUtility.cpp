@@ -49,61 +49,46 @@ HRESULT AddFrameToWICBitmap(_In_ IWICImagingFactory* pWICImagingFactory, _In_ IW
     ComPtr<IWICBitmapFrameEncode> spWICFrameEncoder;
     ComPtr<IPropertyBag2> spWICEncoderOptions;
 
-    HRESULT hr = pWICBitmapEncoder->CreateNewFrame(&spWICFrameEncoder, &spWICEncoderOptions);
-    if (SUCCEEDED(hr))
+    THROW_IF_FAILED(pWICBitmapEncoder->CreateNewFrame(&spWICFrameEncoder, &spWICEncoderOptions));
+
+    GUID containerGuid;
+    THROW_IF_FAILED(pWICBitmapEncoder->GetContainerFormat(&containerGuid));
+
+    if ((containerGuid == GUID_ContainerFormatBmp) && (bmpv == BMPV_5))
     {
-        GUID containerGuid;
-        hr = pWICBitmapEncoder->GetContainerFormat(&containerGuid);
-        if (SUCCEEDED(hr))
-        {
-            if ((containerGuid == GUID_ContainerFormatBmp) && (bmpv == BMPV_5))
-            {
-                // Write the encoder option to the property bag instance.
-                VARIANT varValue = {};
-                PROPBAG2 v5HeaderOption = {};
+        // Write the encoder option to the property bag instance.
+        VARIANT varValue = {};
+        PROPBAG2 v5HeaderOption = {};
 
-                // Options to enable the v5 header support for 32bppBGRA.
-                varValue.vt = VT_BOOL;
-                varValue.boolVal = VARIANT_TRUE;
-                std::wstring str = L"EnableV5Header32bppBGRA";
+        // Options to enable the v5 header support for 32bppBGRA.
+        varValue.vt = VT_BOOL;
+        varValue.boolVal = VARIANT_TRUE;
+        std::wstring str = L"EnableV5Header32bppBGRA";
 
-                v5HeaderOption.pstrName = (LPOLESTR)str.c_str();
+        v5HeaderOption.pstrName = (LPOLESTR)str.c_str();
 
-                hr = spWICEncoderOptions->Write(1, &v5HeaderOption, &varValue);
-            }
-        }
-
-        if (SUCCEEDED(hr))
-        {
-            hr = spWICFrameEncoder->Initialize(spWICEncoderOptions.Get());
-            if (SUCCEEDED(hr))
-            {
-                // Get/set the size of the image
-                UINT uWidth, uHeight;
-                hr = pWICBitmapSource->GetSize(&uWidth, &uHeight);
-                if (SUCCEEDED(hr))
-                {
-                    hr = spWICFrameEncoder->SetSize(uWidth, uHeight);
-                    if (SUCCEEDED(hr))
-                    {
-                        ComPtr<IWICBitmapSource> spBitmapSourceConverted;
-                        hr = ConvertWICBitmapPixelFormat(pWICImagingFactory, pWICBitmapSource, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, &spBitmapSourceConverted);
-                        if (SUCCEEDED(hr))
-                        {
-                            WICRect rect = { 0, 0, static_cast<INT>(uWidth), static_cast<INT>(uHeight) };
-                            // Write the image data and commit
-                            hr = spWICFrameEncoder->WriteSource(spBitmapSourceConverted.Get(), &rect);
-                            if (SUCCEEDED(hr))
-                            {
-                                hr = spWICFrameEncoder->Commit();
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        THROW_IF_FAILED(spWICEncoderOptions->Write(1, &v5HeaderOption, &varValue));
     }
-    return hr;
+
+    THROW_IF_FAILED(spWICFrameEncoder->Initialize(spWICEncoderOptions.Get()));
+
+    // Get/set the size of the image
+    UINT uWidth, uHeight;
+    THROW_IF_FAILED(pWICBitmapSource->GetSize(&uWidth, &uHeight));
+
+    THROW_IF_FAILED(spWICFrameEncoder->SetSize(uWidth, uHeight));
+
+    ComPtr<IWICBitmapSource> spBitmapSourceConverted;
+    THROW_IF_FAILED(ConvertWICBitmapPixelFormat(pWICImagingFactory, pWICBitmapSource, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, &spBitmapSourceConverted));
+
+    WICRect rect = { 0, 0, static_cast<INT>(uWidth), static_cast<INT>(uHeight) };
+
+    // Write the image data and commit
+    THROW_IF_FAILED(spWICFrameEncoder->WriteSource(spBitmapSourceConverted.Get(), &rect));
+
+    THROW_IF_FAILED(spWICFrameEncoder->Commit());
+
+    return S_OK;
 }
 
 
