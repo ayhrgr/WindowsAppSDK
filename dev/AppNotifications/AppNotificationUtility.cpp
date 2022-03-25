@@ -21,6 +21,7 @@
 #include <propkey.h> // PKEY properties
 #include <propsys.h> // IPropertyStore
 #include <ShObjIdl_core.h>
+#include <WICUtility.h>
 
 namespace winrt
 {
@@ -238,11 +239,26 @@ std::wstring Microsoft::Windows::AppNotifications::Helpers::GetDisplayNameBasedO
 }
 
 // Placeholder
-HRESULT RetrieveAssetsFromProcess(_Out_ Microsoft::Windows::AppNotifications::Helpers::AppNotificationAssets& /*assets*/)
+HRESULT RetrieveAssetsFromProcess(_Out_ Microsoft::Windows::AppNotifications::Helpers::AppNotificationAssets& assets)
 {
-    // THROW_HR_IF_MSG(E_UNEXPECTED, VerifyIconFileExtension(iconFilePath));
+     // Retrieve the icon
+    std::wstring iconFilePath{};
+    THROW_IF_FAILED(wil::GetModuleFileNameExW(GetCurrentProcess(), nullptr, iconFilePath));
 
-    return E_NOTIMPL;
+    HICON hIcons[1];
+    ExtractIconExW(iconFilePath.c_str(), 0, hIcons, nullptr, 1);
+
+    std::wstring outputPath = LR"(D:\github3\)";
+    std::wstring writeToFile{ outputPath + LR"(dumpworking2.png)" };
+
+    // Break up into modules
+    HRESULT hr = WriteHIconToPngFile(hIcons[0], writeToFile.c_str());
+
+    assets.displayName = Microsoft::Windows::AppNotifications::Helpers::GetDisplayNameBasedOnProcessName();
+    assets.iconFilePath = writeToFile;
+    DestroyIcon(hIcons[0]);
+
+    return S_OK;
 }
 
 // Do nothing. This is just a placeholder while the UDK is ingested with the proper API.
