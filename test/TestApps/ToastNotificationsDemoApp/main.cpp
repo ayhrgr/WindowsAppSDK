@@ -137,7 +137,7 @@ bool PostToastHelper(std::wstring const& tag, std::wstring const& group)
 void SetDisplayNameAndIcon() noexcept try
 {
     // Not mandatory, but it's highly recommended to specify AppUserModelId
-    THROW_IF_FAILED(SetCurrentProcessExplicitAppUserModelID(L"TestAppId4"));
+    THROW_IF_FAILED(SetCurrentProcessExplicitAppUserModelID(L"TestAppId5"));
 }
 CATCH_LOG()
 

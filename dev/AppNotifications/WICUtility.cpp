@@ -72,7 +72,6 @@ HRESULT AddFrameToWICBitmap(_In_ IWICImagingFactory* pWICImagingFactory, _In_ IW
 
     THROW_IF_FAILED(spWICFrameEncoder->Initialize(spWICEncoderOptions.Get()));
 
-    // Get/set the size of the image
     UINT uWidth, uHeight;
     THROW_IF_FAILED(pWICBitmapSource->GetSize(&uWidth, &uHeight));
 
@@ -96,43 +95,28 @@ HRESULT GetStreamOfWICBitmapSourceWorker(_In_opt_ IWICImagingFactory* pWICImagin
 {
     *ppStreamOut = nullptr;
 
-    HRESULT hr = S_OK;
+    winrt::com_ptr<IStream> spImageStream;
+    THROW_IF_FAILED(CreateStreamOnHGlobal(nullptr, true, spImageStream.put()));
 
-    if (SUCCEEDED(hr))
-    {
-        ComPtr<IStream> spImageStream;
-        hr = CreateStreamOnHGlobal(nullptr, true, &spImageStream);
-        if (SUCCEEDED(hr))
-        {
-            // Create encoder and initialize it
-            ComPtr<IWICBitmapEncoder> spWICEncoder;
-            hr = pWICImagingFactory->CreateEncoder(guidContainerFormat, nullptr, &spWICEncoder);
-            if (SUCCEEDED(hr))
-            {
-                hr = spWICEncoder->Initialize(spImageStream.Get(), WICBitmapEncoderCacheOption::WICBitmapEncoderNoCache);
-                if (SUCCEEDED(hr))
-                {
-                    // Add a single frame to the encoder with the Bitmap
-                    hr = AddFrameToWICBitmap(pWICImagingFactory, spWICEncoder.Get(), pWICBitmapSource, bmpv);
-                    if (SUCCEEDED(hr))
-                    {
-                        hr = spWICEncoder->Commit();
-                        if (SUCCEEDED(hr))
-                        {
-                            // Seek the stream to the beginning and transfer
-                            static const LARGE_INTEGER lnBeginning = {};
-                            hr = spImageStream->Seek(lnBeginning, STREAM_SEEK_SET, nullptr);
-                            if (SUCCEEDED(hr))
-                            {
-                                hr = spImageStream.CopyTo(ppStreamOut);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return hr;
+    // Create encoder and initialize it
+    winrt::com_ptr<IWICBitmapEncoder> spWICEncoder;
+    THROW_IF_FAILED(pWICImagingFactory->CreateEncoder(guidContainerFormat, nullptr, spWICEncoder.put()));
+
+    THROW_IF_FAILED(spWICEncoder->Initialize(spImageStream.get(), WICBitmapEncoderCacheOption::WICBitmapEncoderNoCache));
+
+    // Add a single frame to the encoder with the Bitmap
+    THROW_IF_FAILED(AddFrameToWICBitmap(pWICImagingFactory, spWICEncoder.get(), pWICBitmapSource, bmpv));
+
+    THROW_IF_FAILED(spWICEncoder->Commit());
+
+    // Seek the stream to the beginning and transfer
+    static const LARGE_INTEGER lnBeginning = {};
+    THROW_IF_FAILED(spImageStream->Seek(lnBeginning, STREAM_SEEK_SET, nullptr));
+
+    // Validate the hresult
+    spImageStream.copy_to(ppStreamOut);
+
+    return S_OK;
 }
 
 HRESULT GetStreamOfWICBitmapSource(_In_opt_ IWICImagingFactory* pWICImagingFactory, _In_ IWICBitmapSource* pWICBitmapSource, _In_ REFGUID guidContainerFormat, _COM_Outptr_ IStream** ppStreamOut)
